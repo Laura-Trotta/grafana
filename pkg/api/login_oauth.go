@@ -199,6 +199,9 @@ func (hs *HTTPServer) OAuthLogin(ctx *m.ReqContext) {
 		return
 	}
 
+	//add user to teams
+	hs.addToTeams(cmd.Result.Id, userInfo.Groups, ctx)
+
 	// login
 	hs.loginUserWithUser(cmd.Result, ctx)
 

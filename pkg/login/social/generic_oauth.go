@@ -202,13 +202,29 @@ func (s *SocialGenericOAuth) FetchOrganizations(client *http.Client) ([]string, 
 }
 
 type UserInfoJson struct {
-	Name        string              `json:"name"`
-	DisplayName string              `json:"display_name"`
-	Login       string              `json:"login"`
-	Username    string              `json:"username"`
-	Email       string              `json:"email"`
-	Upn         string              `json:"upn"`
-	Attributes  map[string][]string `json:"attributes"`
+	Name           string              `json:"name"`
+	DisplayName    string              `json:"display_name"`
+	Login          string              `json:"login"`
+	Username       string              `json:"username"`
+	Email          string              `json:"email"`
+	Upn            string              `json:"upn"`
+	Attributes     map[string][]string `json:"attributes"`
+	RealmAccess    RealmAccess         `json:"realm_access"`
+	ResourceAccess ResourceAccess      `json:"resource_access"`
+}
+
+type RealmAccess struct {
+	Roles []string `json:"roles"`
+}
+type GrafanaApp struct {
+	Roles []string `json:"roles"`
+}
+type Account struct {
+	Roles []string `json:"roles"`
+}
+type ResourceAccess struct {
+	GrafanaApp GrafanaApp `json:"grafana-app"`
+	Account    Account    `json:"account"`
 }
 
 func (s *SocialGenericOAuth) UserInfo(client *http.Client, token *oauth2.Token) (*BasicUserInfo, error) {
@@ -240,10 +256,16 @@ func (s *SocialGenericOAuth) UserInfo(client *http.Client, token *oauth2.Token) 
 
 	login := s.extractLogin(&data, email)
 
+	groups := s.extractGroups(&data)
+
+	role := s.extractRole(&data)
+
 	userInfo := &BasicUserInfo{
-		Name:  name,
-		Login: login,
-		Email: email,
+		Name:   name,
+		Login:  login,
+		Email:  email,
+		Groups: groups,
+		Role:   role,
 	}
 
 	if !s.IsTeamMember(client) {
@@ -342,4 +364,22 @@ func (s *SocialGenericOAuth) extractName(data *UserInfoJson) string {
 	}
 
 	return ""
+}
+
+func (s *SocialGenericOAuth) extractGroups(data *UserInfoJson) []string {
+
+	return data.RealmAccess.Roles
+}
+
+func (s *SocialGenericOAuth) extractRole(data *UserInfoJson) string {
+
+	roles := data.ResourceAccess.GrafanaApp.Roles
+
+	for _, role := range roles {
+		if role == "grafana-admin" {
+			return "Admin"
+		}
+	}
+
+	return "Viewer"
 }
