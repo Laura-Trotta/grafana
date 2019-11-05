@@ -228,7 +228,43 @@ func (dr *dashboardServiceImpl) SaveFolderForProvisionedDashboards(dto *SaveDash
 	if err != nil {
 		return nil, err
 	}
+	//***
+	//create team with same name as folder slug
+	teamname := dto.Dashboard.Slug
 
+	teamcmd := &models.CreateTeamCommand{
+		Name:  teamname,
+		OrgId: 1,
+		Email: teamname + "@localhost.com",
+	}
+
+	err = bus.Dispatch(teamcmd)
+	if err != nil {
+		log.Debug(err.Error())
+	}
+
+	teamID := teamcmd.Result.Id
+
+	//give team permission to view the folder
+	folderID := cmd.Result.Id
+
+	pcmd := &models.UpdateDashboardAclCommand{}
+	pcmd.DashboardId = folderID
+
+	pcmd.Items = append(pcmd.Items, &models.DashboardAcl{
+		OrgId:       1,
+		DashboardId: folderID,
+		TeamId:      teamID,
+		Permission:  models.PERMISSION_VIEW,
+		Created:     time.Now(),
+		Updated:     time.Now(),
+	})
+
+	err = bus.Dispatch(pcmd)
+	if err != nil {
+		log.Debug(err.Error())
+	}
+	//***
 	err = dr.updateAlerting(cmd, dto)
 	if err != nil {
 		return nil, err
